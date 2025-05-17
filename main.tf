@@ -106,7 +106,7 @@ resource "aws_ecs_task_definition" "filebeat_nginx" {
 }
 
 resource "aws_ecs_service" "filebeat_nginx" {
-  name            = "filebeat-nginx-svc"
+  name            = "imtech-dor-filebeat-nginx"
   cluster         = data.aws_ecs_cluster.cluster.id
   task_definition = aws_ecs_task_definition.filebeat_nginx.arn
   desired_count   = 1
