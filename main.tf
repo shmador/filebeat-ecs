@@ -7,7 +7,7 @@ data "aws_ecs_cluster" "cluster" {
 }
 
 data "aws_iam_role" "role" {
-  name = "AWSServiceRoleForECS"
+  name = "ecsTaskExecutionRole"
 }
 
 data "aws_security_group" "sg" {
@@ -21,15 +21,30 @@ data "aws_subnets" "subnets" {
   }
 }
 
-variable "es_url" {
-  default = "http://172.30.20.131:9200"
-}
-
 resource "aws_cloudwatch_log_group" "filebeat_nginx" {
   name              = "/ecs/imtech-dor-filebeat-nginx"
   retention_in_days = 14
 }
 
+resource "aws_lb_target_group" "nginx_target_group" {
+  name     = "imtech-dor-filebeat"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = "vpc-042cee0fdc6a5a7e2"
+
+  target_type = "ip"
+}
+
+resource "aws_lb_listener" "nginx_listener" {
+  load_balancer_arn = "arn:aws:elasticloadbalancing:il-central-1:314525640319:loadbalancer/app/imtec/dd67eee2877975d6"  # Correct the ARN here
+  port              = 90
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.nginx_target_group.arn
+  }
+}
 
 resource "aws_ecs_task_definition" "filebeat_nginx" {
   family                   = "filebeat-nginx"
@@ -78,13 +93,6 @@ resource "aws_ecs_task_definition" "filebeat_nginx" {
         "/usr/share/filebeat/filebeat.yml"
       ]
 
-      environment = [
-        {
-          name  = "ELASTICSEARCH_HOST"
-          value = var.es_url
-        }
-      ]
-
       mountPoints = [
         {
           sourceVolume  = "nginx-logs"
@@ -117,4 +125,14 @@ resource "aws_ecs_service" "filebeat_nginx" {
     security_groups  = [data.aws_security_group.sg.id]
     assign_public_ip = true
   }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.nginx_target_group.arn
+    container_name   = "nginx"
+    container_port   = 80
+  }
+
+  depends_on = [
+    aws_lb_listener.nginx_listener
+  ]
 }
