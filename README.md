@@ -1,1 +1,1 @@
-Filebeat sidecar container setup on AWS ECS
+Filebeat sidcar container setup on ECS for sending logs to a remote logstash server
